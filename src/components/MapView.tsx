@@ -1,175 +1,99 @@
 "use client";
 
-import { MarkerClusterer } from "@googlemaps/markerclusterer";
 import {
   GoogleMap,
-  OverlayViewF,
-  OverlayView,
+  InfoWindowF,
+  MarkerF,
   useLoadScript,
 } from "@react-google-maps/api";
-import { Copy, Locate, Navigation, X } from "lucide-react";
+import { MarkerClusterer } from "@googlemaps/markerclusterer";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CopyToClipboard } from "react-copy-to-clipboard";
-import type { CleanHouse } from "@/types";
+import { CleanHouse } from "@/types";
 import { BinIcons } from "./BinIcons";
 
 interface MapViewProps {
   items: CleanHouse[];
-  selectedItem: CleanHouse | null;
+  selected: CleanHouse | null;
   onSelect: (item: CleanHouse | null) => void;
   onCopy: () => void;
   center: { lat: number; lng: number };
-  onCenterChange: (center: { lat: number; lng: number }) => void;
-}
-
-function getMapOptions(): google.maps.MapOptions {
-  return {
-    disableDefaultUI: true,
-    zoomControl: true,
-    clickableIcons: false,
-    styles: [
-      {
-        featureType: "poi",
-        stylers: [{ visibility: "simplified" }],
-      },
-    ],
-  };
+  onCenterChange: (c: { lat: number; lng: number }) => void;
 }
 
 export function MapView({
   items,
-  selectedItem,
+  selected,
   onSelect,
   onCopy,
   center,
   onCenterChange,
 }: MapViewProps) {
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const clustererRef = useRef<MarkerClusterer | null>(null);
+  const markersRef = useRef<google.maps.Marker[]>([]);
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
   });
 
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const clustererRef = useRef<MarkerClusterer | null>(null);
-  const legacyMarkersRef = useRef<google.maps.Marker[]>([]);
-  const onSelectRef = useRef(onSelect);
-  onSelectRef.current = onSelect;
-  const [locating, setLocating] = useState(false);
+  const onMapLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
+  }, []);
 
-  const createMarkers = useCallback(
-    (map: google.maps.Map, data: CleanHouse[]) => {
-      if (clustererRef.current) {
-        clustererRef.current.clearMarkers();
-      }
-      legacyMarkersRef.current.forEach((m) => m.setMap(null));
-      legacyMarkersRef.current = [];
+  // Manage markers + clustering
+  useEffect(() => {
+    if (!mapRef.current || !isLoaded) return;
+    const map = mapRef.current;
 
-      const markers = data.map((item) => {
-        const marker = new google.maps.Marker({
-          position: { lat: Number(item.lat), lng: Number(item.lng) },
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            fillColor: "#2563EB",
-            fillOpacity: 0.9,
-            strokeColor: "#ffffff",
-            strokeWeight: 2,
-            scale: 7,
-          },
-        });
+    // Clear old
+    if (clustererRef.current) {
+      clustererRef.current.clearMarkers();
+    }
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = [];
 
-        marker.addListener("click", () => {
-          onSelectRef.current(item);
-          map.panTo({ lat: Number(item.lat), lng: Number(item.lng) });
-        });
-
-        return marker;
+    // Create markers
+    const markers = items.map((item) => {
+      const marker = new google.maps.Marker({
+        position: { lat: item.lat, lng: item.lng },
+        title: item.name,
       });
+      marker.addListener("click", () => {
+        onSelect(item);
+        map.panTo({ lat: item.lat, lng: item.lng });
+      });
+      return marker;
+    });
+    markersRef.current = markers;
 
-      legacyMarkersRef.current = markers;
-
-      const renderer = {
-        render: ({
-          count,
-          position,
-        }: {
-          count: number;
-          position: google.maps.LatLng;
-        }) => {
-          const size = Math.min(50, 28 + Math.log2(count) * 4);
-          return new google.maps.Marker({
-            position,
-            icon: {
-              path: google.maps.SymbolPath.CIRCLE,
-              fillColor: "#2563EB",
-              fillOpacity: 0.8,
-              strokeColor: "#ffffff",
-              strokeWeight: 2.5,
-              scale: size / 2,
-            },
-            label: {
-              text:
-                count > 999
-                  ? `${Math.round(count / 1000)}k`
-                  : String(count),
-              color: "#ffffff",
-              fontSize: "11px",
-              fontWeight: "600",
-            },
-            zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count,
-          });
-        },
-      };
-
+    // Cluster
+    if (clustererRef.current) {
+      clustererRef.current.clearMarkers();
+      clustererRef.current.addMarkers(markers);
+    } else {
       clustererRef.current = new MarkerClusterer({
         map,
         markers,
-        renderer,
       });
-    },
-    []
-  );
-
-  const onMapLoad = useCallback(
-    (map: google.maps.Map) => {
-      mapRef.current = map;
-      createMarkers(map, items);
-    },
-    [items, createMarkers]
-  );
-
-  useEffect(() => {
-    if (mapRef.current) {
-      createMarkers(mapRef.current, items);
     }
-  }, [items, createMarkers]);
 
-  useEffect(() => {
-    if (selectedItem && mapRef.current) {
-      mapRef.current.panTo({
-        lat: Number(selectedItem.lat),
-        lng: Number(selectedItem.lng),
+    return () => {
+      markers.forEach((m) => {
+        google.maps.event.clearInstanceListeners(m);
       });
-      if (mapRef.current.getZoom()! < 15) {
-        mapRef.current.setZoom(15);
-      }
-    }
-  }, [selectedItem]);
+    };
+  }, [items, isLoaded, onSelect]);
 
-  const handleLocate = () => {
-    setLocating(true);
+  const goToMyLocation = () => {
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const newCenter = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-        onCenterChange(newCenter);
-        mapRef.current?.panTo(newCenter);
-        mapRef.current?.setZoom(14);
-        setLocating(false);
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        onCenterChange(loc);
+        mapRef.current?.panTo(loc);
+        mapRef.current?.setZoom(15);
       },
-      () => {
-        setLocating(false);
-      }
+      () => alert("위치 정보를 가져올 수 없습니다")
     );
   };
 
@@ -177,103 +101,74 @@ export function MapView({
     return (
       <div className="flex-1 flex items-center justify-center bg-slate-100">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-3 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-slate-500">지도 로딩 중...</p>
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-500">지도 로딩 중...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative flex-1">
+    <div className="flex-1 relative">
       <GoogleMap
+        onLoad={onMapLoad}
         mapContainerClassName="h-full w-full"
         center={center}
         zoom={11}
-        onLoad={onMapLoad}
-        options={getMapOptions()}
+        options={{
+          disableDefaultUI: true,
+          zoomControl: true,
+          zoomControlOptions: {
+            position: google.maps.ControlPosition.RIGHT_CENTER,
+          },
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+        }}
         onClick={() => onSelect(null)}
       >
-        {selectedItem && (
-          <OverlayViewF
-            position={{
-              lat: Number(selectedItem.lat),
-              lng: Number(selectedItem.lng),
-            }}
-            mapPaneName={OverlayView.FLOAT_PANE}
-            getPixelPositionOffset={(width, height) => ({
-              x: -(width / 2),
-              y: -(height + 16),
-            })}
+        {/* InfoWindow */}
+        {selected && (
+          <InfoWindowF
+            onCloseClick={() => onSelect(null)}
+            position={{ lat: selected.lat, lng: selected.lng }}
+            options={{ maxWidth: 320 }}
           >
-            <div className="bg-white rounded-xl shadow-lg border border-slate-200 w-80 overflow-hidden">
-              <div className="p-4">
-                {/* Header: Name + Close */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-sm text-slate-900 break-keep">
-                      {selectedItem.name}
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5 break-keep">
-                      {selectedItem.address}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => onSelect(null)}
-                    className="text-slate-400 hover:text-slate-600 shrink-0 p-0.5"
-                  >
-                    <X size={16} />
+            <div className="p-1 min-w-[260px]">
+              <h3 className="font-bold text-base text-gray-900 mb-1">
+                {selected.name}
+              </h3>
+              <p className="text-xs text-gray-500 mb-1">{selected.district}</p>
+              <p className="text-sm text-gray-700 mb-3">{selected.address}</p>
+
+              <BinIcons item={selected} />
+
+              <div className="flex gap-2 mt-3">
+                <CopyToClipboard text={selected.address} onCopy={onCopy}>
+                  <button className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-medium transition-colors min-h-[44px]">
+                    📋 주소 복사
                   </button>
-                </div>
-
-                {/* Bin info grid */}
-                <div className="mt-3">
-                  <BinIcons item={selectedItem} size="md" />
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex gap-2 mt-3">
-                  <CopyToClipboard
-                    text={selectedItem.address}
-                    onCopy={onCopy}
-                  >
-                    <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
-                      <Copy size={13} />
-                      주소 복사
-                    </button>
-                  </CopyToClipboard>
-                  <a
-                    href={`https://map.kakao.com/link/to/${encodeURIComponent(selectedItem.name)},${selectedItem.lat},${selectedItem.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#3C1E1E] bg-[#FEE500] hover:bg-[#F5DC00] rounded-lg transition-colors"
-                  >
-                    <Navigation size={13} />
-                    카카오내비
-                  </a>
-                </div>
-              </div>
-              {/* Arrow */}
-              <div className="flex justify-center -mb-2">
-                <div className="w-3 h-3 bg-white border-r border-b border-slate-200 rotate-45 -translate-y-1.5" />
+                </CopyToClipboard>
+                <Link
+                  href={`https://map.kakao.com/link/to/${selected.name},${selected.lat},${selected.lng}`}
+                  target="_blank"
+                  className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-[#FEE500] hover:bg-[#FDD835] text-gray-900 rounded-lg text-xs font-medium transition-colors min-h-[44px]"
+                >
+                  🧭 카카오내비
+                </Link>
               </div>
             </div>
-          </OverlayViewF>
+          </InfoWindowF>
         )}
       </GoogleMap>
 
-      {/* FAB: Current location */}
+      {/* My Location FAB */}
       <button
-        onClick={handleLocate}
-        disabled={locating}
-        className="absolute bottom-24 md:bottom-6 right-4 w-12 h-12 bg-white rounded-full shadow-lg border border-slate-200 flex items-center justify-center hover:bg-slate-50 active:bg-slate-100 transition-colors z-10"
-        aria-label="현재 위치"
+        onClick={goToMyLocation}
+        className="absolute bottom-24 md:bottom-6 right-4 w-12 h-12 bg-white hover:bg-gray-50 rounded-full shadow-lg flex items-center justify-center text-xl transition-all active:scale-95 z-10"
+        title="현재 위치"
       >
-        {locating ? (
-          <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <Locate size={20} className="text-primary-500" />
-        )}
+        📍
       </button>
     </div>
   );

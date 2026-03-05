@@ -1,58 +1,66 @@
 "use client";
 
-import { CleanHouse, BIN_CONFIG } from "@/types";
+import { CleanHouse } from "@/types";
 
-interface BinIconsProps {
+const bins = [
+  { key: "trashBins" as const, icon: "🗑️", label: "종량제" },
+  { key: "recycleBins" as const, icon: "♻️", label: "재활용" },
+  { key: "glassBins" as const, icon: "🍶", label: "유리병" },
+  { key: "styrofoamBins" as const, icon: "📦", label: "스티로폼" },
+  { key: "batteryBins" as const, icon: "🔋", label: "폐건전지" },
+  { key: "fluorescentBins" as const, icon: "💡", label: "폐형광등" },
+  { key: "foodWasteBins" as const, icon: "🍽️", label: "음식물" },
+  { key: "foodWeighBins" as const, icon: "⚖️", label: "계량" },
+  { key: "cctvCount" as const, icon: "📹", label: "CCTV" },
+] as const;
+
+type BinKey = (typeof bins)[number]["key"];
+
+export function BinIcons({
+  item,
+  compact = false,
+}: {
   item: CleanHouse;
-  size?: "sm" | "md";
-}
-
-export function BinIcons({ item, size = "md" }: BinIconsProps) {
-  const isSm = size === "sm";
-
-  return (
-    <div className={isSm ? "flex flex-wrap gap-1" : "bin-grid"}>
-      {BIN_CONFIG.map(({ key, label, icon }) => {
-        const count = item[key] as number;
-        const isZero = count === 0;
-
-        if (isSm) {
-          if (isZero) return null;
+  compact?: boolean;
+}) {
+  if (compact) {
+    return (
+      <div className="flex flex-wrap gap-1">
+        {bins.map((b) => {
+          const val = item[b.key as BinKey] ?? 0;
+          if (val <= 0) return null;
           return (
             <span
-              key={key}
-              className="inline-flex items-center gap-0.5 text-xs bg-slate-100 rounded px-1.5 py-0.5"
+              key={b.key}
+              className="inline-flex items-center text-xs bg-slate-100 rounded px-1 py-0.5"
+              title={`${b.label}: ${val}`}
             >
-              <span className="text-[10px]">{icon}</span>
-              <span className="font-medium text-slate-700">{count}</span>
+              <span className="text-[10px]">{b.icon}</span>
+              <span className="ml-0.5 text-slate-600">{val}</span>
             </span>
           );
-        }
+        })}
+      </div>
+    );
+  }
 
+  return (
+    <div className="grid grid-cols-3 gap-1.5">
+      {bins.map((b) => {
+        const val = item[b.key as BinKey] ?? 0;
+        const active = val > 0;
         return (
           <div
-            key={key}
-            className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs ${
-              isZero
-                ? "bg-slate-50 text-slate-300"
-                : "bg-slate-50 text-slate-700"
+            key={b.key}
+            className={`flex items-center gap-1 text-xs rounded-md px-2 py-1 ${
+              active
+                ? "bg-blue-50 text-blue-800"
+                : "bg-gray-50 text-gray-400"
             }`}
+            title={b.label}
           >
-            <span className={`text-sm ${isZero ? "grayscale opacity-40" : ""}`}>
-              {icon}
-            </span>
-            <div className="flex flex-col leading-tight">
-              <span
-                className={`text-[10px] ${
-                  isZero ? "text-slate-300" : "text-slate-400"
-                }`}
-              >
-                {label}
-              </span>
-              <span className={`font-semibold ${isZero ? "text-slate-300" : "text-slate-800"}`}>
-                {count}
-              </span>
-            </div>
+            <span className="text-sm">{b.icon}</span>
+            <span className="font-medium">{val}</span>
           </div>
         );
       })}

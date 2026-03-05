@@ -1,7 +1,7 @@
-import { JejuCleanHouse } from "@/components/JejuCleanHouse";
-import type { CleanHouse } from "@/types";
 import { promises as fs } from "fs";
 import path from "path";
+import { CleanHouse } from "@/types";
+import { ClientApp } from "@/components/ClientApp";
 
 async function getData(): Promise<CleanHouse[]> {
   const dir = path.join(process.cwd(), "asset");
@@ -12,5 +12,5 @@ async function getData(): Promise<CleanHouse[]> {
 export default async function Home() {
   const data = await getData();
 
-  return <JejuCleanHouse items={data} />;
+  return <ClientApp items={data} />;
 }

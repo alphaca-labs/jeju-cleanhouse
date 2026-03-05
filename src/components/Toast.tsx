@@ -1,39 +1,38 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-interface ToastProps {
+export function Toast({
+  message,
+  show,
+  onClose,
+}: {
   message: string;
-  visible: boolean;
+  show: boolean;
   onClose: () => void;
-}
+}) {
+  const [visible, setVisible] = useState(false);
 
-export function Toast({ message, visible, onClose }: ToastProps) {
   useEffect(() => {
-    if (visible) {
-      const timer = setTimeout(onClose, 3000);
+    if (show) {
+      setVisible(true);
+      const timer = setTimeout(() => {
+        setVisible(false);
+        setTimeout(onClose, 300);
+      }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [visible, onClose]);
+  }, [show, onClose]);
 
-  if (!visible) return null;
+  if (!show && !visible) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] toast-enter">
-      <div className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium">
-        <svg
-          className="w-4 h-4 text-accent-400 shrink-0"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2.5}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
+    <div
+      className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999] transition-all duration-300 ${
+        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+      }`}
+    >
+      <div className="bg-gray-900 text-white px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium">
         {message}
       </div>
     </div>

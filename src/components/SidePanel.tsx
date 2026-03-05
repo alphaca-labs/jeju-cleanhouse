@@ -3,74 +3,71 @@
 import { CleanHouse } from "@/types";
 import { SearchBar } from "./SearchBar";
 import { LocationCard } from "./LocationCard";
-import { MapPin } from "lucide-react";
 
 interface SidePanelProps {
   items: CleanHouse[];
-  allItems: CleanHouse[];
-  search: string;
-  onSearchChange: (value: string) => void;
-  selectedItem: CleanHouse | null;
-  onSelect: (item: CleanHouse) => void;
+  query: string;
+  onQueryChange: (q: string) => void;
   districts: string[];
   selectedDistrict: string;
-  onDistrictChange: (district: string) => void;
+  onDistrictChange: (d: string) => void;
+  selectedItem: CleanHouse | null;
+  onSelectItem: (item: CleanHouse) => void;
 }
 
 export function SidePanel({
   items,
-  allItems,
-  search,
-  onSearchChange,
-  selectedItem,
-  onSelect,
+  query,
+  onQueryChange,
   districts,
   selectedDistrict,
   onDistrictChange,
+  selectedItem,
+  onSelectItem,
 }: SidePanelProps) {
   return (
-    <aside className="hidden md:flex md:flex-col w-96 border-r border-slate-200 bg-white shrink-0">
-      <SearchBar
-        value={search}
-        onChange={onSearchChange}
-        resultCount={items.length}
-      />
-
-      {/* District filter */}
-      <div className="px-4 py-2 border-b border-slate-100">
-        <select
-          value={selectedDistrict}
-          onChange={(e) => onDistrictChange(e.target.value)}
-          className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
-        >
-          <option value="">전체 읍면동</option>
-          {districts.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
+    <div className="hidden md:flex flex-col w-96 h-full bg-slate-50 border-r border-gray-200">
+      {/* Header */}
+      <div className="p-4 bg-white border-b border-gray-100">
+        <h1 className="text-lg font-bold text-gray-900 mb-3">
+          🏝️ 제주 클린하우스
+        </h1>
+        <SearchBar
+          query={query}
+          onQueryChange={onQueryChange}
+          districts={districts}
+          selectedDistrict={selectedDistrict}
+          onDistrictChange={onDistrictChange}
+          resultCount={items.length}
+        />
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <MapPin size={32} className="mb-3 text-slate-300" />
-            <p className="text-sm font-medium">검색 결과가 없습니다</p>
-            <p className="text-xs mt-1">다른 검색어를 입력해보세요</p>
+          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+            <span className="text-4xl mb-2">🔍</span>
+            <p className="text-sm">검색 결과가 없습니다</p>
           </div>
         ) : (
-          items.map((item, idx) => (
+          items.slice(0, 100).map((item, i) => (
             <LocationCard
-              key={`${item.lat}-${item.lng}-${idx}`}
+              key={`${item.lat}-${item.lng}-${i}`}
               item={item}
-              isSelected={selectedItem === item}
-              onSelect={onSelect}
+              isSelected={
+                selectedItem?.lat === item.lat &&
+                selectedItem?.lng === item.lng
+              }
+              onClick={() => onSelectItem(item)}
             />
           ))
         )}
+        {items.length > 100 && (
+          <p className="text-center text-xs text-gray-400 py-2">
+            검색어로 범위를 좁혀보세요 ({items.length}건 중 100건 표시)
+          </p>
+        )}
       </div>
-    </aside>
+    </div>
   );
 }
