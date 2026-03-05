@@ -83,15 +83,67 @@ const ListIcon = (props: any) => (
   </svg>
 );
 
+type BinInfo = {
+  general: number;
+  recycle: number;
+  glass: number;
+  styrofoam: number;
+  battery: number;
+  fluorescent: number;
+  food: number;
+  foodScale: number;
+};
+
 export type CleanHouseItem = {
-  name: string;
+  district: string;
   address: string;
+  name: string;
   lat: number;
   lng: number;
+  bins: BinInfo;
+  cctv: number;
+  updatedAt: string;
 };
+
+const BIN_TYPES: { key: keyof BinInfo; icon: string; label: string }[] = [
+  { key: "general", icon: "🗑️", label: "종량제" },
+  { key: "recycle", icon: "♻️", label: "재활용" },
+  { key: "glass", icon: "🍾", label: "유리병" },
+  { key: "styrofoam", icon: "📦", label: "스티로폼" },
+  { key: "battery", icon: "🔋", label: "건전지" },
+  { key: "fluorescent", icon: "💡", label: "형광등" },
+  { key: "food", icon: "🍽️", label: "음식물" },
+  { key: "foodScale", icon: "⚖️", label: "음식물(계량)" },
+];
 
 export type JejuMapProps = {
   items: CleanHouseItem[];
+};
+
+const BinBadge = ({
+  icon,
+  label,
+  count,
+}: {
+  icon: string;
+  label: string;
+  count: number;
+}) => {
+  if (count <= 0) return null;
+  return (
+    <div
+      className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
+      style={{
+        backgroundColor: "#f0f4ff",
+        border: "1px solid #e0e7ff",
+        whiteSpace: "nowrap",
+      }}
+      title={`${label} ${count}개`}
+    >
+      <span>{icon}</span>
+      <span style={{ color: "#374151" }}>{count}</span>
+    </div>
+  );
 };
 
 // Map styling for clean/minimal look
@@ -122,14 +174,14 @@ export const JejuMap = ({ items }: JejuMapProps) => {
   const [selected, setSelected] = useState<CleanHouseItem | null>(null);
   const [center, setCenter] = useState(JEJU_CENTER);
   const [userLocation, setUserLocation] = useState<google.maps.LatLng | null>(null);
-  const [searchQuery, setSearchIconQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isLocating, setIsLocating] = useState(false);
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [isBottomSheetExpanded, setIsBottomSheetExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXIconT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
   });
 
   // Check if mobile
@@ -147,7 +199,8 @@ export const JejuMap = ({ items }: JejuMapProps) => {
     if (!searchQuery.trim()) return items;
     return items.filter(item =>
       item.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.name.toLowerCase().includes(searchQuery.toLowerCase())
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.district.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [items, searchQuery]);
 
@@ -320,11 +373,6 @@ export const JejuMap = ({ items }: JejuMapProps) => {
     toast.success('주소가 복사되었습니다!');
   }, []);
 
-  const getDistrictFromAddress = (address: string) => {
-    const parts = address.split(' ');
-    return parts.length >= 3 ? parts[2] : '';
-  };
-
   const formatDistance = (distance: number) => {
     if (distance < 1) {
       return `${Math.round(distance * 1000)}m`;
@@ -345,21 +393,21 @@ export const JejuMap = ({ items }: JejuMapProps) => {
 
   return (
     <div className="h-full w-full relative">
-      {/* SearchIcon Bar */}
+      {/* Search Bar */}
       <div className="absolute top-4 left-4 right-4 z-50 md:left-80 md:right-4">
         <div className="bg-white/95 backdrop-blur-sm shadow-lg rounded-xl border border-gray-200">
           <div className="relative">
             <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="주소로 검색..."
+              placeholder="주소 또는 지역으로 검색..."
               value={searchQuery}
-              onChange={(e) => setSearchIconQuery(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-4 py-3 rounded-xl border-none outline-none bg-transparent text-gray-800 placeholder-gray-500"
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchIconQuery("")}
+                onClick={() => setSearchQuery("")}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 w-5 h-5"
               >
                 <XIcon className="w-5 h-5" />
@@ -403,13 +451,12 @@ export const JejuMap = ({ items }: JejuMapProps) => {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <p className="font-medium text-gray-800 mb-1">{item.address}</p>
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <div className="flex items-center gap-2 mb-1">
                         <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs">
-                          {getDistrictFromAddress(item.address)}
+                          {item.district}
                         </span>
                         {userLocation && (
-                          <span>
+                          <span className="text-xs text-gray-500">
                             {formatDistance(
                               calculateDistance(
                                 userLocation.lat(),
@@ -421,6 +468,8 @@ export const JejuMap = ({ items }: JejuMapProps) => {
                           </span>
                         )}
                       </div>
+                      <p className="font-medium text-gray-800 mb-1">{item.name}</p>
+                      <p className="text-sm text-gray-600">{item.address}</p>
                     </div>
                     <MapPinIcon className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0 ml-2" />
                   </div>
@@ -486,13 +535,12 @@ export const JejuMap = ({ items }: JejuMapProps) => {
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <p className="font-medium text-gray-800 mb-1">{item.address}</p>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <div className="flex items-center gap-2 mb-1">
                           <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs">
-                            {getDistrictFromAddress(item.address)}
+                            {item.district}
                           </span>
                           {userLocation && (
-                            <span>
+                            <span className="text-xs text-gray-500">
                               {formatDistance(
                                 calculateDistance(
                                   userLocation.lat(),
@@ -504,6 +552,8 @@ export const JejuMap = ({ items }: JejuMapProps) => {
                             </span>
                           )}
                         </div>
+                        <p className="font-medium text-gray-800 mb-1">{item.name}</p>
+                        <p className="text-sm text-gray-600">{item.address}</p>
                       </div>
                       <MapPinIcon className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0 ml-2" />
                     </div>
@@ -567,14 +617,32 @@ export const JejuMap = ({ items }: JejuMapProps) => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <MapPinIcon className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                      <h3 className="font-semibold text-gray-800">{selected.name}</h3>
                       <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded-md text-xs">
-                        {getDistrictFromAddress(selected.address)}
+                        {selected.district}
                       </span>
                     </div>
-                    <p className="text-gray-600 text-sm leading-relaxed">
+                    <h3 className="font-semibold text-gray-800 mb-1">{selected.name}</h3>
+                    <p className="text-gray-600 text-sm leading-relaxed mb-3">
                       {selected.address}
                     </p>
+
+                    {/* 수거함 정보 */}
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {BIN_TYPES.map(({ key, icon, label }) => (
+                        <BinBadge
+                          key={key}
+                          icon={icon}
+                          label={label}
+                          count={selected.bins[key]}
+                        />
+                      ))}
+                    </div>
+
+                    {/* CCTV + 업데이트 */}
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                      {selected.cctv > 0 && <span>📹 CCTV {selected.cctv}대</span>}
+                      {selected.updatedAt && <span>{selected.updatedAt} 기준</span>}
+                    </div>
                   </div>
                   <button
                     onClick={() => setSelected(null)}
