@@ -78,6 +78,7 @@ body {
   padding: 0 !important;
   border-radius: 12px !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12) !important;
+  max-width: 320px !important;
 }
 
 .gm-style-iw-d {
@@ -92,4 +93,22 @@ body {
 .gm-ui-hover-effect {
   top: 4px !important;
   right: 4px !important;
+}
+
+/* Bottom sheet transition */
+.bottom-sheet-transition {
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Bin badge grid */
+.bin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+@media (min-width: 360px) {
+  .bin-grid {
+    gap: 8px;
+  }
 }

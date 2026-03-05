@@ -1,8 +1,9 @@
 import { JejuCleanHouse } from "@/components/JejuCleanHouse";
+import type { CleanHouse } from "@/types";
 import { promises as fs } from "fs";
 import path from "path";
 
-async function getData() {
+async function getData(): Promise<CleanHouse[]> {
   const dir = path.join(process.cwd(), "asset");
   const json = await fs.readFile(dir + "/data.json", "utf8");
   return JSON.parse(json);

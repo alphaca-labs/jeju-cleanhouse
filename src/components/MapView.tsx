@@ -10,7 +10,8 @@ import {
 import { Copy, Locate, Navigation, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CopyToClipboard } from "react-copy-to-clipboard";
-import type { CleanHouse } from "./types";
+import type { CleanHouse } from "@/types";
+import { BinIcons } from "./BinIcons";
 
 interface MapViewProps {
   items: CleanHouse[];
@@ -56,7 +57,6 @@ export function MapView({
 
   const createMarkers = useCallback(
     (map: google.maps.Map, data: CleanHouse[]) => {
-      // Clean up existing
       if (clustererRef.current) {
         clustererRef.current.clearMarkers();
       }
@@ -136,14 +136,12 @@ export function MapView({
     [items, createMarkers]
   );
 
-  // Update markers when items change (search filter)
   useEffect(() => {
     if (mapRef.current) {
       createMarkers(mapRef.current, items);
     }
   }, [items, createMarkers]);
 
-  // Pan to selected item
   useEffect(() => {
     if (selectedItem && mapRef.current) {
       mapRef.current.panTo({
@@ -196,7 +194,6 @@ export function MapView({
         options={getMapOptions()}
         onClick={() => onSelect(null)}
       >
-        {/* Custom InfoWindow */}
         {selectedItem && (
           <OverlayViewF
             position={{
@@ -209,14 +206,15 @@ export function MapView({
               y: -(height + 16),
             })}
           >
-            <div className="bg-white rounded-xl shadow-lg border border-slate-200 w-72 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-lg border border-slate-200 w-80 overflow-hidden">
               <div className="p-4">
+                {/* Header: Name + Close */}
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2 flex-1">
-                    <div className="mt-0.5 w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center shrink-0">
-                      <div className="w-2 h-2 bg-white rounded-full" />
-                    </div>
-                    <p className="text-sm text-slate-800 leading-relaxed break-keep">
+                  <div className="flex-1">
+                    <h3 className="font-bold text-sm text-slate-900 break-keep">
+                      {selectedItem.name}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5 break-keep">
                       {selectedItem.address}
                     </p>
                   </div>
@@ -227,21 +225,28 @@ export function MapView({
                     <X size={16} />
                   </button>
                 </div>
-                <div className="flex gap-2 mt-3 ml-7">
+
+                {/* Bin info grid */}
+                <div className="mt-3">
+                  <BinIcons item={selectedItem} size="md" />
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-2 mt-3">
                   <CopyToClipboard
                     text={selectedItem.address}
                     onCopy={onCopy}
                   >
-                    <button className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors min-h-[36px]">
+                    <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
                       <Copy size={13} />
                       주소 복사
                     </button>
                   </CopyToClipboard>
                   <a
-                    href={`https://map.kakao.com/link/to/${selectedItem.address},${selectedItem.lat},${selectedItem.lng}`}
+                    href={`https://map.kakao.com/link/to/${encodeURIComponent(selectedItem.name)},${selectedItem.lat},${selectedItem.lng}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-[#3C1E1E] bg-[#FEE500] hover:bg-[#F5DC00] rounded-lg transition-colors min-h-[36px]"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#3C1E1E] bg-[#FEE500] hover:bg-[#F5DC00] rounded-lg transition-colors"
                   >
                     <Navigation size={13} />
                     카카오내비
@@ -257,7 +262,7 @@ export function MapView({
         )}
       </GoogleMap>
 
-      {/* FAB: Current location button */}
+      {/* FAB: Current location */}
       <button
         onClick={handleLocate}
         disabled={locating}
