@@ -1,4 +1,4 @@
-import { JejuMap } from "@/components/JejuMap";
+import { JejuCleanHouse } from "@/components/JejuCleanHouse";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -11,9 +11,5 @@ async function getData() {
 export default async function Home() {
   const data = await getData();
 
-  return (
-    <main style={{ height: "100vh", width: "100%" }}>
-      <JejuMap items={data} />
-    </main>
-  );
+  return <JejuCleanHouse items={data} />;
 }
